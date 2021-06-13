@@ -34,16 +34,14 @@ class SingleFileSystemTest {
     @BeforeAll
     public static void deleteFile() throws IOException {
         Path path = tempDirectory.resolve(FILE_SYSTEM_FILENAME);
-        if (Files.exists(path)) {
-            Files.delete(path);
-        }
+        Files.deleteIfExists(path);
 
         SYSTEM_FILE_PATH = tempDirectory.resolve(FILE_SYSTEM_FILENAME);
     }
 
     @AfterEach
     public void cleanUp() throws IOException {
-        Files.delete(SYSTEM_FILE_PATH);
+        Files.deleteIfExists(SYSTEM_FILE_PATH);
     }
 
     @Test
@@ -55,6 +53,8 @@ class SingleFileSystemTest {
 
         String testFile = "testfolder/testsubfolder/testfile1";
         system.writeFile(testFile, testString.getBytes());
+
+        system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
         Set<String> files = system.listFiles("testfolder/testsubfolder");
 
@@ -76,6 +76,8 @@ class SingleFileSystemTest {
 
         String testStringUpdated = testString + 2;
         system.writeFile(testFile, testStringUpdated.getBytes());
+
+        system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
         Set<String> files = system.listFiles("testfolder/testsubfolder");
 
@@ -200,6 +202,8 @@ class SingleFileSystemTest {
         Path pngPath = Paths.get(getClass().getClassLoader().getResource("file_example_PNG_2100kB.png").toURI());
         byte[] pngContent = Files.readAllBytes(pngPath);
         system.writeFile("testfolder/png/sample.png", pngContent);
+
+        system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
         byte[] mp3bytes = system.readFile("testfolder/mp3/sample.mp3");
 

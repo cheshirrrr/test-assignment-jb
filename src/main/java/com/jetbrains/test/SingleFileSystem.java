@@ -124,7 +124,7 @@ public class SingleFileSystem implements FileSystem {
             while (offset < fileLength) {
                 systemFile.seek(offset);
                 String fileName = systemFile.readUTF();
-                int size = systemFile.read();
+                int size = systemFile.readInt();
                 boolean deleted = systemFile.readBoolean();
                 long fileOffset = systemFile.getFilePointer();
                 if (deleted) {
@@ -159,7 +159,7 @@ public class SingleFileSystem implements FileSystem {
             systemFile.seek(systemFile.length());
             systemFile.writeUTF(fileName);
             int fileSize = contents.length;
-            systemFile.write(fileSize);
+            systemFile.writeInt(fileSize);
             systemFile.writeBoolean(false);
             long offset = systemFile.getFilePointer();
             systemFile.write(contents);
