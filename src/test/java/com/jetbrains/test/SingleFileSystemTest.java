@@ -1,5 +1,6 @@
 package com.jetbrains.test;
 
+import org.apache.commons.io.FileExistsException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -52,7 +53,7 @@ class SingleFileSystemTest {
         String testString = "Testing write/read";
 
         String testFile = "testfolder/testsubfolder/testfile1";
-        system.write(testFile, testString.getBytes());
+        system.write(testFile, testString.getBytes(), true);
 
         system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
@@ -72,10 +73,10 @@ class SingleFileSystemTest {
         String testString = "Testing write/read";
 
         String testFile = "testfolder/testsubfolder/testfile1";
-        system.write(testFile, testString.getBytes());
+        system.write(testFile, testString.getBytes(), true);
 
         String testStringUpdated = testString + 2;
-        system.write(testFile, testStringUpdated.getBytes());
+        system.write(testFile, testStringUpdated.getBytes(), true);
 
         system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
@@ -88,6 +89,19 @@ class SingleFileSystemTest {
     }
 
     @Test
+    @DisplayName("Trying to write to existing file without 'overwrite' flag leads to Exception")
+    public void cannotOverwriteFile() throws IOException {
+        FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
+
+        String testString = "Testing write";
+
+        String testFile = "testfolder/testsubfolder/testfile1";
+        system.write(testFile, testString.getBytes(), false);
+
+        assertThrows(FileExistsException.class, () -> system.write(testFile, testString.getBytes(), false));
+    }
+
+    @Test
     @DisplayName("When file is deleted reading it throws FileNotFoundException")
     public void cannotFindDeleted() throws IOException {
         FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
@@ -97,7 +111,7 @@ class SingleFileSystemTest {
         String fileNameBase = "testfolder/testsubfolder/testfile";
         for (int i = 0; i < 10; i++) {
 
-            system.write(fileNameBase + i, testString.getBytes());
+            system.write(fileNameBase + i, testString.getBytes(), true);
         }
 
 
@@ -121,7 +135,7 @@ class SingleFileSystemTest {
         String fileNameBase = "testfolder/testsubfolder/testfile";
         for (int i = 0; i < 3; i++) {
 
-            system.write(fileNameBase + i, testString.getBytes());
+            system.write(fileNameBase + i, testString.getBytes(), true);
         }
 
         String testFile = fileNameBase + "1";
@@ -155,7 +169,7 @@ class SingleFileSystemTest {
         String fileNameBase = "testfolder/testsubfolder/testfile";
         for (int i = 0; i < 3; i++) {
 
-            system.write(fileNameBase + i, testString.getBytes());
+            system.write(fileNameBase + i, testString.getBytes(), true);
         }
 
         String testFile = fileNameBase + "1";
@@ -189,19 +203,19 @@ class SingleFileSystemTest {
 
         Path docPath = Paths.get(getClass().getClassLoader().getResource("file-sample_1MB.doc").toURI());
         byte[] docContent = Files.readAllBytes(docPath);
-        system.write("testfolder/doc/sample.doc", docContent);
+        system.write("testfolder/doc/sample.doc", docContent, true);
 
         Path mp3Path = Paths.get(getClass().getClassLoader().getResource("file_example_MP3_5MG.mp3").toURI());
         byte[] mp3Content = Files.readAllBytes(mp3Path);
-        system.write("testfolder/mp3/sample.mp3", mp3Content);
+        system.write("testfolder/mp3/sample.mp3", mp3Content, true);
 
         Path mp4Path = Paths.get(getClass().getClassLoader().getResource("file_example_MP4_640_3MG.mp4").toURI());
         byte[] mp4Content = Files.readAllBytes(mp4Path);
-        system.write("testfolder/mp4/sample.mp4", mp4Content);
+        system.write("testfolder/mp4/sample.mp4", mp4Content, true);
 
         Path pngPath = Paths.get(getClass().getClassLoader().getResource("file_example_PNG_2100kB.png").toURI());
         byte[] pngContent = Files.readAllBytes(pngPath);
-        system.write("testfolder/png/sample.png", pngContent);
+        system.write("testfolder/png/sample.png", pngContent, true);
 
         system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
@@ -224,7 +238,7 @@ class SingleFileSystemTest {
         byte[] mp4Content = Files.readAllBytes(mp4Path);
         int fileCount = 25;
         for (int i = 0; i < 100; i++) {
-            system.write("testfolder/mp4/sample_" + (i % fileCount) + ".mp4", mp4Content);
+            system.write("testfolder/mp4/sample_" + (i % fileCount) + ".mp4", mp4Content, true);
         }
 
          byte[] mp4bytes = system.read("testfolder/mp4/sample_3.mp4");
@@ -240,7 +254,7 @@ class SingleFileSystemTest {
         String testString = "Test content";
 
         for (int i = 0; i < 100; i++) {
-            system.write("testfile" + i, (testString + i).getBytes());
+            system.write("testfile" + i, (testString + i).getBytes(), true);
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(3);
@@ -268,12 +282,12 @@ class SingleFileSystemTest {
 
         String testString = "Test content";
 
-        system.write("/folder1/testfile1.txt", testString.getBytes());
-        system.write("/folder1/testfile2.txt", testString.getBytes());
-        system.write("/folder2/testfile1.txt", testString.getBytes());
-        system.write("/folder1/subfolder1/testfile1.txt", testString.getBytes());
-        system.write("/folder1/subfolder2/testfile2.txt", testString.getBytes());
-        system.write("/folder1/subfolder2/subsubfolder1/testfile2.txt", testString.getBytes());
+        system.write("/folder1/testfile1.txt", testString.getBytes(), true);
+        system.write("/folder1/testfile2.txt", testString.getBytes(), true);
+        system.write("/folder2/testfile1.txt", testString.getBytes(), true);
+        system.write("/folder1/subfolder1/testfile1.txt", testString.getBytes(), true);
+        system.write("/folder1/subfolder2/testfile2.txt", testString.getBytes(), true);
+        system.write("/folder1/subfolder2/subsubfolder1/testfile2.txt", testString.getBytes(), true);
 
         List<String> files = system.findFile("testfile2.txt");
 
@@ -288,13 +302,13 @@ class SingleFileSystemTest {
         String testString = "Testing read after error";
 
         String testFile = "testfolder/testsubfolder/testfile1";
-        system.write(testFile, testString.getBytes());
+        system.write(testFile, testString.getBytes(), true);
 
         assertThrows(FileNotFoundException.class, () -> system.read("nonexistentfile"));
 
         Executors.newSingleThreadExecutor().submit(() -> {
             try {
-                system.write(testFile, testString.getBytes());
+                system.write(testFile, testString.getBytes(), true);
             } catch (IOException e) {
                 e.printStackTrace();
             }

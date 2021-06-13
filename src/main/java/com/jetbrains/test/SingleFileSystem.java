@@ -1,5 +1,7 @@
 package com.jetbrains.test;
 
+import org.apache.commons.io.FileExistsException;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,10 +48,10 @@ public class SingleFileSystem implements FileSystem {
     }
 
     @Override
-    public boolean exists(String fileName) {
+    public boolean exists(String path) {
         readLock.lock();
         try {
-            return files.containsKey(fileName);
+            return files.keySet().stream().anyMatch(f -> f.startsWith(path));
         } finally {
             readLock.unlock();
         }
@@ -59,9 +61,6 @@ public class SingleFileSystem implements FileSystem {
     public Set<String> listFiles(String path) {
         readLock.lock();
         try {
-            if (path.isEmpty()) {
-                return files.keySet();
-            }
             return files.keySet().stream().filter(s -> s.startsWith(path)).collect(Collectors.toSet());
         } finally {
             readLock.unlock();
@@ -79,10 +78,13 @@ public class SingleFileSystem implements FileSystem {
     }
 
     @Override
-    public void write(String path, byte[] contents) throws IOException {
+    public void write(String path, byte[] contents, boolean overwrite) throws IOException {
         writeLock.lock();
         try {
-            if (files.containsKey(path)) {
+            boolean fileExists = files.containsKey(path);
+            if (fileExists && !overwrite) {
+                throw new FileExistsException(new File(path));
+            } else if(fileExists) {
                 deleteFile(systemFileName, path);
             }
             writeFile(systemFileName, path, contents);
@@ -96,6 +98,9 @@ public class SingleFileSystem implements FileSystem {
     public void delete(String path) throws IOException {
         writeLock.lock();
         try {
+            if(!files.containsKey(path)){
+                throw new FileNotFoundException(path);
+            }
             deleteFile(systemFileName, path);
             cleanUpIfNecessary();
         } finally {
@@ -159,12 +164,12 @@ public class SingleFileSystem implements FileSystem {
         }
     }
 
-    private byte[] readFile(String systemFileName, String fileName) throws IOException {
+    private byte[] readFile(String systemFileName, String path) throws IOException {
         try (RandomAccessFile systemFile = new RandomAccessFile(systemFileName, "r")) {
-            if (!files.containsKey(fileName)) {
-                throw new FileNotFoundException();
+            if (!files.containsKey(path)) {
+                throw new FileNotFoundException(path);
             }
-            FileMetadata metadata = files.get(fileName);
+            FileMetadata metadata = files.get(path);
             int fileSize = metadata.getFileSize();
             long offset = metadata.getOffset();
             byte[] contents = new byte[fileSize];

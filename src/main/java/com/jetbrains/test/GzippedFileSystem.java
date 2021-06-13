@@ -16,8 +16,8 @@ public class GzippedFileSystem implements FileSystem {
     }
 
     @Override
-    public boolean exists(String fileName) {
-        return delegate.exists(fileName);
+    public boolean exists(String path) {
+        return delegate.exists(path);
     }
 
     @Override
@@ -41,7 +41,7 @@ public class GzippedFileSystem implements FileSystem {
     }
 
     @Override
-    public void write(String path, byte[] contents) throws IOException {
+    public void write(String path, byte[] contents, boolean overwrite) throws IOException {
         try (ByteArrayInputStream byteIn = new ByteArrayInputStream(contents); ByteArrayOutputStream byteOut = new ByteArrayOutputStream(); GZIPOutputStream gzippedOut = new GZIPOutputStream(byteOut)) {
             byte[] buffer = new byte[Math.min(contents.length, 1024)];
             int len;
@@ -50,7 +50,7 @@ public class GzippedFileSystem implements FileSystem {
             }
             gzippedOut.finish();
             byte[] gzippedContents = byteOut.toByteArray();
-            delegate.write(path, gzippedContents);
+            delegate.write(path, gzippedContents, overwrite);
         }
     }
 

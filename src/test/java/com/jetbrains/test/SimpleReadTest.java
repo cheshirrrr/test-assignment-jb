@@ -29,7 +29,7 @@ public class SimpleReadTest {
 
         for (int i = 0; i < FILE_COUNT; i++) {
             String fileName = "sample_" + i + ".txt";
-            system.write(fileName, FILE_CONTENTS.getBytes());
+            system.write(fileName, FILE_CONTENTS.getBytes(), true);
         }
 
     }

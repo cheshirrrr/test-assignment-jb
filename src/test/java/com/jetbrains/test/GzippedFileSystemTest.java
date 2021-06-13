@@ -40,7 +40,7 @@ class GzippedFileSystemTest {
         String testString = "Testing write/read";
 
         String testFile = "testfolder/testsubfolder/testfile1";
-        system.write(testFile, testString.getBytes());
+        system.write(testFile, testString.getBytes(), true);
 
         Set<String> files = system.listFiles("testfolder/testsubfolder");
 
@@ -58,10 +58,10 @@ class GzippedFileSystemTest {
         String testString = "Testing write/read";
 
         String testFile = "testfolder/testsubfolder/testfile1";
-        system.write(testFile, testString.getBytes());
+        system.write(testFile, testString.getBytes(), true);
 
         String testStringUpdated = testString + 2;
-        system.write(testFile, testStringUpdated.getBytes());
+        system.write(testFile, testStringUpdated.getBytes(), true);
 
         Set<String> files = system.listFiles("testfolder/testsubfolder");
 
@@ -82,9 +82,8 @@ class GzippedFileSystemTest {
         String fileNameBase = "testfolder/testsubfolder/testfile";
         for (int i = 0; i < 10; i++) {
 
-            system.write(fileNameBase + i, testString.getBytes());
+            system.write(fileNameBase + i, testString.getBytes(), true);
         }
-
 
         String testFile = fileNameBase + "1";
         assertTrue(system.exists(testFile), "File should exist");
