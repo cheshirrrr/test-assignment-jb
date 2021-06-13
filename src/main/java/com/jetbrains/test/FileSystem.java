@@ -13,6 +13,4 @@ public interface FileSystem {
     void writeFile(String fileName, byte[] contents) throws IOException;
 
     void deleteFile(String fileName) throws IOException;
-
-    void close() throws IOException;
 }

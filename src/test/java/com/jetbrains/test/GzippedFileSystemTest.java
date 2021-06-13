@@ -48,8 +48,6 @@ class GzippedFileSystemTest {
 
         byte[] bytes = system.readFile(testFile);
         assertEquals(testString, new String(bytes));
-
-        system.close();
     }
 
     @Test
@@ -71,8 +69,6 @@ class GzippedFileSystemTest {
 
         byte[] bytes = system.readFile(testFile);
         assertEquals(testStringUpdated, new String(bytes));
-
-        system.close();
     }
 
 
@@ -98,7 +94,5 @@ class GzippedFileSystemTest {
         assertFalse(system.exists(testFile), "File should not exist anymore");
 
         assertThrows(FileNotFoundException.class, () -> system.readFile(testFile), "Reading nonexistent file should throw exception");
-
-        system.close();
     }
 }

@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
@@ -61,8 +62,6 @@ class SingleFileSystemTest {
 
         byte[] bytes = system.readFile(testFile);
         assertEquals(testString, new String(bytes));
-
-        system.close();
     }
 
     @Test
@@ -84,14 +83,12 @@ class SingleFileSystemTest {
 
         byte[] bytes = system.readFile(testFile);
         assertEquals(testStringUpdated, new String(bytes));
-
-        system.close();
     }
 
     @Test
     @DisplayName("When file is deleted reading it throws FileNotFoundException")
     public void cannotFindDeleted() throws IOException {
-        FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString(), SingleFileSystem.CleanupStrategy.CHECK_SIZE, 0.9f);
+        FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
         String testString = "Testing deletion";
 
@@ -110,8 +107,6 @@ class SingleFileSystemTest {
         assertFalse(system.exists(testFile), "File should not exist anymore");
 
         assertThrows(FileNotFoundException.class, () -> system.readFile(testFile), "Reading nonexistent file should throw exception");
-
-        system.close();
     }
 
     @Test
@@ -130,8 +125,6 @@ class SingleFileSystemTest {
         String testFile = fileNameBase + "1";
 
         system.deleteFile(testFile);
-
-        system.close();
 
         RandomAccessFile directAccessFile = new RandomAccessFile(SYSTEM_FILE_PATH.toString(), "r");
 
@@ -166,8 +159,6 @@ class SingleFileSystemTest {
         String testFile = fileNameBase + "1";
 
         system.deleteFile(testFile);
-
-        system.close();
 
         RandomAccessFile directAccessFile = new RandomAccessFile(SYSTEM_FILE_PATH.toString(), "r");
 
@@ -218,11 +209,10 @@ class SingleFileSystemTest {
 
         assertArrayEquals(pngContent, pngbytes, "Contents should be equal");
 
-        system.close();
     }
 
     @Test
-    @DisplayName("When file is loaded multiple times, it can be retrieved")
+    @DisplayName("When file is loaded multiple times, it can still be retrieved")
     public void canWriteFileMultipleTimes() throws IOException, URISyntaxException {
         FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
@@ -236,60 +226,34 @@ class SingleFileSystemTest {
          byte[] mp4bytes = system.readFile("testfolder/mp4/sample_3.mp4");
 
         assertArrayEquals(mp4Content, mp4bytes, "Contents should be equal");
-
-        system.close();
     }
 
     @Test
-    @DisplayName("Cannot read while writing")
-    public void sequentiallyWritesAndReads() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    @DisplayName("Multiple files can be read simultaneously")
+    public void canReadMultipleFiles() throws IOException, InterruptedException, ExecutionException {
         FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
-        String testString = "Testing multithread";
+        String testString = "Test content";
 
-        system.writeFile("testfile", testString.getBytes());
-
-        ExecutorService executor = Executors.newFixedThreadPool(16);
-
-        ArrayList<Callable<byte[]>> callables = new ArrayList<>();
-        for (int i = 0; i < 16; i++) {
-            callables.add(() -> system.readFile("testfile"));
+        for (int i = 0; i < 100; i++) {
+            system.writeFile("testfile" + i, (testString + i).getBytes());
         }
-        List<Future<byte[]>> futures = executor.invokeAll(callables);
+
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+
+        ArrayList<Callable<byte[]>> readCallables = new ArrayList<>();
+
+        readCallables.add(() -> system.readFile("testfile24"));
+        readCallables.add(() -> system.readFile("testfile97"));
+        readCallables.add(() -> system.readFile("testfile3"));
+
+        List<String> expectedStrings = Arrays.asList("Test content24", "Test content97", "Test content3");
+        List<Future<byte[]>> futures = executor.invokeAll(readCallables);
 
         for (Future<byte[]> future : futures) {
-            byte[] actual = future.get(10, TimeUnit.MILLISECONDS);
-            assertEquals(testString, new String(actual));
+            byte[] content = future.get();
+            String actualString = new String(content);
+            assertTrue(expectedStrings.contains(actualString), "Should read correct files");
         }
-        system.close();
-    }
-
-    public static void main(String[] args) throws IOException {
-        RandomAccessFile writeFile = new RandomAccessFile("multiaccesstest", "rw");
-        RandomAccessFile readFile1 = new RandomAccessFile("multiaccesstest", "r");
-        RandomAccessFile readFile2 = new RandomAccessFile("multiaccesstest", "r");
-
-        String teststring = "teststring";
-
-        for (int i = 0; i < 9; i++) {
-            writeFile.write((teststring+i).getBytes());
-        }
-
-        int length = teststring.getBytes().length + 1;
-        readFile1.seek(length * 3);
-        byte[] contents1 = new byte[length];
-        readFile1.read(contents1);
-        System.out.println(new String(contents1));
-
-        writeFile.write(teststring.getBytes());
-
-        readFile2.seek(length * 7);
-        byte[] contents2 = new byte[length];
-        readFile2.read(contents2);
-        System.out.println(new String(contents2));
-
-        writeFile.close();
-        readFile1.close();
-        readFile2.close();
     }
 }

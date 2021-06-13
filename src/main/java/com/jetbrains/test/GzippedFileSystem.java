@@ -8,7 +8,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 public class GzippedFileSystem implements FileSystem {
-    private FileSystem delegate;
+    private final FileSystem delegate;
 
     public GzippedFileSystem(FileSystem delegate) {
         this.delegate = delegate;
@@ -56,10 +56,5 @@ public class GzippedFileSystem implements FileSystem {
     @Override
     public void deleteFile(String fileName) throws IOException {
         delegate.deleteFile(fileName);
-    }
-
-    @Override
-    public void close() throws IOException {
-        delegate.close();
     }
 }
