@@ -40,13 +40,13 @@ class GzippedFileSystemTest {
         String testString = "Testing write/read";
 
         String testFile = "testfolder/testsubfolder/testfile1";
-        system.writeFile(testFile, testString.getBytes());
+        system.write(testFile, testString.getBytes());
 
         Set<String> files = system.listFiles("testfolder/testsubfolder");
 
         assertThat("List contains file", files.contains(testFile));
 
-        byte[] bytes = system.readFile(testFile);
+        byte[] bytes = system.read(testFile);
         assertEquals(testString, new String(bytes));
     }
 
@@ -58,16 +58,16 @@ class GzippedFileSystemTest {
         String testString = "Testing write/read";
 
         String testFile = "testfolder/testsubfolder/testfile1";
-        system.writeFile(testFile, testString.getBytes());
+        system.write(testFile, testString.getBytes());
 
         String testStringUpdated = testString + 2;
-        system.writeFile(testFile, testStringUpdated.getBytes());
+        system.write(testFile, testStringUpdated.getBytes());
 
         Set<String> files = system.listFiles("testfolder/testsubfolder");
 
         assertThat("List contains file", files.contains(testFile));
 
-        byte[] bytes = system.readFile(testFile);
+        byte[] bytes = system.read(testFile);
         assertEquals(testStringUpdated, new String(bytes));
     }
 
@@ -82,17 +82,17 @@ class GzippedFileSystemTest {
         String fileNameBase = "testfolder/testsubfolder/testfile";
         for (int i = 0; i < 10; i++) {
 
-            system.writeFile(fileNameBase + i, testString.getBytes());
+            system.write(fileNameBase + i, testString.getBytes());
         }
 
 
         String testFile = fileNameBase + "1";
         assertTrue(system.exists(testFile), "File should exist");
 
-        system.deleteFile(testFile);
+        system.delete(testFile);
 
         assertFalse(system.exists(testFile), "File should not exist anymore");
 
-        assertThrows(FileNotFoundException.class, () -> system.readFile(testFile), "Reading nonexistent file should throw exception");
+        assertThrows(FileNotFoundException.class, () -> system.read(testFile), "Reading nonexistent file should throw exception");
     }
 }

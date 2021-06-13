@@ -3,6 +3,7 @@ package com.jetbrains.test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -25,8 +26,8 @@ public class GzippedFileSystem implements FileSystem {
     }
 
     @Override
-    public byte[] readFile(String fileName) throws IOException {
-        byte[] contents = delegate.readFile(fileName);
+    public byte[] read(String path) throws IOException {
+        byte[] contents = delegate.read(path);
         ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
         try (GZIPInputStream gzippedIn = new GZIPInputStream(new ByteArrayInputStream(contents))) {
             byte[] buffer = new byte[Math.min(contents.length, 1024)];
@@ -40,7 +41,7 @@ public class GzippedFileSystem implements FileSystem {
     }
 
     @Override
-    public void writeFile(String fileName, byte[] contents) throws IOException {
+    public void write(String path, byte[] contents) throws IOException {
         try (ByteArrayInputStream byteIn = new ByteArrayInputStream(contents); ByteArrayOutputStream byteOut = new ByteArrayOutputStream(); GZIPOutputStream gzippedOut = new GZIPOutputStream(byteOut)) {
             byte[] buffer = new byte[Math.min(contents.length, 1024)];
             int len;
@@ -49,12 +50,17 @@ public class GzippedFileSystem implements FileSystem {
             }
             gzippedOut.finish();
             byte[] gzippedContents = byteOut.toByteArray();
-            delegate.writeFile(fileName, gzippedContents);
+            delegate.write(path, gzippedContents);
         }
     }
 
     @Override
-    public void deleteFile(String fileName) throws IOException {
-        delegate.deleteFile(fileName);
+    public void delete(String path) throws IOException {
+        delegate.delete(path);
+    }
+
+    @Override
+    public List<String> findFile(String fileName) {
+        return delegate.findFile(fileName);
     }
 }

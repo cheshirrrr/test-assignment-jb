@@ -21,7 +21,7 @@ public class SimpleReadTest {
     public static String FILE_CONTENTS = "test text file";
 
     @BeforeAll
-    public static void initFile() throws IOException, URISyntaxException {
+    public static void initFile() throws IOException {
 
         Files.deleteIfExists(Paths.get(SYSTEM_FILE_NAME));
 
@@ -29,7 +29,7 @@ public class SimpleReadTest {
 
         for (int i = 0; i < FILE_COUNT; i++) {
             String fileName = "sample_" + i + ".txt";
-            system.writeFile(fileName, FILE_CONTENTS.getBytes());
+            system.write(fileName, FILE_CONTENTS.getBytes());
         }
 
     }
@@ -40,12 +40,12 @@ public class SimpleReadTest {
     }
 
     @Test
-    public void readRandomFile() throws IOException, URISyntaxException {
+    public void readRandomFile() throws IOException {
         FileSystem system = SingleFileSystem.create(SYSTEM_FILE_NAME);
 
         int fileNumber = new Random().nextInt(FILE_COUNT);
 
-        byte[] actualBytes = system.readFile("sample_" + fileNumber + ".txt");
+        byte[] actualBytes = system.read("sample_" + fileNumber + ".txt");
 
         assertEquals(FILE_CONTENTS, new String(actualBytes), "Contents should be equal");
     }

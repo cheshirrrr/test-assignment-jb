@@ -52,7 +52,7 @@ class SingleFileSystemTest {
         String testString = "Testing write/read";
 
         String testFile = "testfolder/testsubfolder/testfile1";
-        system.writeFile(testFile, testString.getBytes());
+        system.write(testFile, testString.getBytes());
 
         system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
@@ -60,7 +60,7 @@ class SingleFileSystemTest {
 
         assertThat("List contains file", files.contains(testFile));
 
-        byte[] bytes = system.readFile(testFile);
+        byte[] bytes = system.read(testFile);
         assertEquals(testString, new String(bytes));
     }
 
@@ -72,10 +72,10 @@ class SingleFileSystemTest {
         String testString = "Testing write/read";
 
         String testFile = "testfolder/testsubfolder/testfile1";
-        system.writeFile(testFile, testString.getBytes());
+        system.write(testFile, testString.getBytes());
 
         String testStringUpdated = testString + 2;
-        system.writeFile(testFile, testStringUpdated.getBytes());
+        system.write(testFile, testStringUpdated.getBytes());
 
         system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
@@ -83,7 +83,7 @@ class SingleFileSystemTest {
 
         assertThat("List contains file", files.contains(testFile));
 
-        byte[] bytes = system.readFile(testFile);
+        byte[] bytes = system.read(testFile);
         assertEquals(testStringUpdated, new String(bytes));
     }
 
@@ -97,18 +97,18 @@ class SingleFileSystemTest {
         String fileNameBase = "testfolder/testsubfolder/testfile";
         for (int i = 0; i < 10; i++) {
 
-            system.writeFile(fileNameBase + i, testString.getBytes());
+            system.write(fileNameBase + i, testString.getBytes());
         }
 
 
         String testFile = fileNameBase + "1";
         assertTrue(system.exists(testFile), "File should exist");
 
-        system.deleteFile(testFile);
+        system.delete(testFile);
 
         assertFalse(system.exists(testFile), "File should not exist anymore");
 
-        assertThrows(FileNotFoundException.class, () -> system.readFile(testFile), "Reading nonexistent file should throw exception");
+        assertThrows(FileNotFoundException.class, () -> system.read(testFile), "Reading nonexistent file should throw exception");
     }
 
     @Test
@@ -121,12 +121,12 @@ class SingleFileSystemTest {
         String fileNameBase = "testfolder/testsubfolder/testfile";
         for (int i = 0; i < 3; i++) {
 
-            system.writeFile(fileNameBase + i, testString.getBytes());
+            system.write(fileNameBase + i, testString.getBytes());
         }
 
         String testFile = fileNameBase + "1";
 
-        system.deleteFile(testFile);
+        system.delete(testFile);
 
         RandomAccessFile directAccessFile = new RandomAccessFile(SYSTEM_FILE_PATH.toString(), "r");
 
@@ -155,12 +155,12 @@ class SingleFileSystemTest {
         String fileNameBase = "testfolder/testsubfolder/testfile";
         for (int i = 0; i < 3; i++) {
 
-            system.writeFile(fileNameBase + i, testString.getBytes());
+            system.write(fileNameBase + i, testString.getBytes());
         }
 
         String testFile = fileNameBase + "1";
 
-        system.deleteFile(testFile);
+        system.delete(testFile);
 
         RandomAccessFile directAccessFile = new RandomAccessFile(SYSTEM_FILE_PATH.toString(), "r");
 
@@ -170,7 +170,7 @@ class SingleFileSystemTest {
         while (offset < fileLength) {
             directAccessFile.seek(offset);
             String fileName = directAccessFile.readUTF();
-            int size = directAccessFile.read();
+            int size = directAccessFile.readInt();
             boolean deleted = directAccessFile.readBoolean();
             long fileOffset = directAccessFile.getFilePointer();
             fileCount++;
@@ -189,27 +189,27 @@ class SingleFileSystemTest {
 
         Path docPath = Paths.get(getClass().getClassLoader().getResource("file-sample_1MB.doc").toURI());
         byte[] docContent = Files.readAllBytes(docPath);
-        system.writeFile("testfolder/doc/sample.doc", docContent);
+        system.write("testfolder/doc/sample.doc", docContent);
 
         Path mp3Path = Paths.get(getClass().getClassLoader().getResource("file_example_MP3_5MG.mp3").toURI());
         byte[] mp3Content = Files.readAllBytes(mp3Path);
-        system.writeFile("testfolder/mp3/sample.mp3", mp3Content);
+        system.write("testfolder/mp3/sample.mp3", mp3Content);
 
         Path mp4Path = Paths.get(getClass().getClassLoader().getResource("file_example_MP4_640_3MG.mp4").toURI());
         byte[] mp4Content = Files.readAllBytes(mp4Path);
-        system.writeFile("testfolder/mp4/sample.mp4", mp4Content);
+        system.write("testfolder/mp4/sample.mp4", mp4Content);
 
         Path pngPath = Paths.get(getClass().getClassLoader().getResource("file_example_PNG_2100kB.png").toURI());
         byte[] pngContent = Files.readAllBytes(pngPath);
-        system.writeFile("testfolder/png/sample.png", pngContent);
+        system.write("testfolder/png/sample.png", pngContent);
 
         system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
 
-        byte[] mp3bytes = system.readFile("testfolder/mp3/sample.mp3");
+        byte[] mp3bytes = system.read("testfolder/mp3/sample.mp3");
 
         assertArrayEquals(mp3Content, mp3bytes, "Contents should be equal");
 
-        byte[] pngbytes = system.readFile("testfolder/png/sample.png");
+        byte[] pngbytes = system.read("testfolder/png/sample.png");
 
         assertArrayEquals(pngContent, pngbytes, "Contents should be equal");
 
@@ -223,11 +223,11 @@ class SingleFileSystemTest {
         Path mp4Path = Paths.get(getClass().getClassLoader().getResource("file_example_MP4_640_3MG.mp4").toURI());
         byte[] mp4Content = Files.readAllBytes(mp4Path);
         int fileCount = 25;
-        for (int i = 0; i < 1000; i++) {
-            system.writeFile("testfolder/mp4/sample_" + (i % fileCount) + ".mp4", mp4Content);
+        for (int i = 0; i < 100; i++) {
+            system.write("testfolder/mp4/sample_" + (i % fileCount) + ".mp4", mp4Content);
         }
 
-         byte[] mp4bytes = system.readFile("testfolder/mp4/sample_3.mp4");
+         byte[] mp4bytes = system.read("testfolder/mp4/sample_3.mp4");
 
         assertArrayEquals(mp4Content, mp4bytes, "Contents should be equal");
     }
@@ -240,16 +240,16 @@ class SingleFileSystemTest {
         String testString = "Test content";
 
         for (int i = 0; i < 100; i++) {
-            system.writeFile("testfile" + i, (testString + i).getBytes());
+            system.write("testfile" + i, (testString + i).getBytes());
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(3);
 
         ArrayList<Callable<byte[]>> readCallables = new ArrayList<>();
 
-        readCallables.add(() -> system.readFile("testfile24"));
-        readCallables.add(() -> system.readFile("testfile97"));
-        readCallables.add(() -> system.readFile("testfile3"));
+        readCallables.add(() -> system.read("testfile24"));
+        readCallables.add(() -> system.read("testfile97"));
+        readCallables.add(() -> system.read("testfile3"));
 
         List<String> expectedStrings = Arrays.asList("Test content24", "Test content97", "Test content3");
         List<Future<byte[]>> futures = executor.invokeAll(readCallables);
@@ -259,5 +259,45 @@ class SingleFileSystemTest {
             String actualString = new String(content);
             assertTrue(expectedStrings.contains(actualString), "Should read correct files");
         }
+    }
+
+    @Test
+    @DisplayName("Files can be found")
+    public void canFindFilesInDifferentFolders() throws IOException {
+        FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
+
+        String testString = "Test content";
+
+        system.write("/folder1/testfile1.txt", testString.getBytes());
+        system.write("/folder1/testfile2.txt", testString.getBytes());
+        system.write("/folder2/testfile1.txt", testString.getBytes());
+        system.write("/folder1/subfolder1/testfile1.txt", testString.getBytes());
+        system.write("/folder1/subfolder2/testfile2.txt", testString.getBytes());
+        system.write("/folder1/subfolder2/subsubfolder1/testfile2.txt", testString.getBytes());
+
+        List<String> files = system.findFile("testfile2.txt");
+
+        assertEquals(3, files.size(), "Should find expected number of files");
+    }
+
+    @Test
+    @DisplayName("When nonexistent file is requested system continues to work properly")
+    public void canWriteAfterError() throws IOException, ExecutionException, InterruptedException, TimeoutException {
+        FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
+
+        String testString = "Testing read after error";
+
+        String testFile = "testfolder/testsubfolder/testfile1";
+        system.write(testFile, testString.getBytes());
+
+        assertThrows(FileNotFoundException.class, () -> system.read("nonexistentfile"));
+
+        Executors.newSingleThreadExecutor().submit(() -> {
+            try {
+                system.write(testFile, testString.getBytes());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).get(50, TimeUnit.MILLISECONDS);
     }
 }

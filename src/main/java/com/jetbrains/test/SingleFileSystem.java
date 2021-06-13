@@ -7,7 +7,6 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
@@ -25,7 +24,7 @@ public class SingleFileSystem implements FileSystem {
     private long deletedFileSize = 0;
     private final String systemFileName;
 
-    protected SingleFileSystem(String fileSystemFile, float fillRate, CleanupStrategy cleanupStrategy) {
+    private SingleFileSystem(String fileSystemFile, float fillRate, CleanupStrategy cleanupStrategy) {
         systemFileName = fileSystemFile;
         this.fillRate = fillRate;
         this.cleanupStrategy = cleanupStrategy;
@@ -49,47 +48,69 @@ public class SingleFileSystem implements FileSystem {
     @Override
     public boolean exists(String fileName) {
         readLock.lock();
-        boolean contains = files.containsKey(fileName);
-        readLock.unlock();
-        return contains;
+        try {
+            return files.containsKey(fileName);
+        } finally {
+            readLock.unlock();
+        }
     }
 
     @Override
     public Set<String> listFiles(String path) {
         readLock.lock();
-        if (path.isEmpty()) {
-            return files.keySet();
+        try {
+            if (path.isEmpty()) {
+                return files.keySet();
+            }
+            return files.keySet().stream().filter(s -> s.startsWith(path)).collect(Collectors.toSet());
+        } finally {
+            readLock.unlock();
         }
-        Set<String> existingFiles = files.keySet().stream().filter(s -> s.startsWith(path)).collect(Collectors.toSet());
-        readLock.unlock();
-        return existingFiles;
     }
 
     @Override
-    public byte[] readFile(String fileName) throws IOException {
+    public byte[] read(String path) throws IOException {
         readLock.lock();
-        byte[] contents = readFile(this.systemFileName, fileName);
-        readLock.unlock();
-        return contents;
-    }
-
-    @Override
-    public void writeFile(String fileName, byte[] contents) throws IOException {
-        writeLock.lock();
-        if (files.containsKey(fileName)) {
-            deleteFile(systemFileName, fileName);
+        try {
+            return readFile(this.systemFileName, path);
+        }finally {
+            readLock.unlock();
         }
-        writeFile(systemFileName, fileName, contents);
-        cleanUpIfNecessary();
-        writeLock.unlock();
     }
 
     @Override
-    public void deleteFile(String fileName) throws IOException {
+    public void write(String path, byte[] contents) throws IOException {
         writeLock.lock();
-        deleteFile(systemFileName, fileName);
-        cleanUpIfNecessary();
-        writeLock.unlock();
+        try {
+            if (files.containsKey(path)) {
+                deleteFile(systemFileName, path);
+            }
+            writeFile(systemFileName, path, contents);
+            cleanUpIfNecessary();
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    @Override
+    public void delete(String path) throws IOException {
+        writeLock.lock();
+        try {
+            deleteFile(systemFileName, path);
+            cleanUpIfNecessary();
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    @Override
+    public List<String> findFile(String fileName) {
+        readLock.lock();
+        try {
+            return files.keySet().stream().filter(f -> f.endsWith(fileName)).collect(Collectors.toList());
+        } finally {
+            readLock.unlock();
+        }
     }
 
     protected void cleanUp() throws IOException {
@@ -118,7 +139,7 @@ public class SingleFileSystem implements FileSystem {
     }
 
     private void readAllFiles() throws IOException {
-        try(RandomAccessFile systemFile = new RandomAccessFile(systemFileName, "rw")) {
+        try (RandomAccessFile systemFile = new RandomAccessFile(systemFileName, "rw")) {
             long offset = 0;
             long fileLength = systemFile.length();
             while (offset < fileLength) {
@@ -139,7 +160,7 @@ public class SingleFileSystem implements FileSystem {
     }
 
     private byte[] readFile(String systemFileName, String fileName) throws IOException {
-        try(RandomAccessFile systemFile = new RandomAccessFile(systemFileName, "r")) {
+        try (RandomAccessFile systemFile = new RandomAccessFile(systemFileName, "r")) {
             if (!files.containsKey(fileName)) {
                 throw new FileNotFoundException();
             }
@@ -155,7 +176,7 @@ public class SingleFileSystem implements FileSystem {
     }
 
     private void writeFile(String systemFileName, String fileName, byte[] contents) throws IOException {
-        try(RandomAccessFile systemFile = new RandomAccessFile(systemFileName, "rw")) {
+        try (RandomAccessFile systemFile = new RandomAccessFile(systemFileName, "rw")) {
             systemFile.seek(systemFile.length());
             systemFile.writeUTF(fileName);
             int fileSize = contents.length;
@@ -167,20 +188,21 @@ public class SingleFileSystem implements FileSystem {
         }
     }
 
-    private void deleteFile(String systemFileName, String fileName) throws IOException {
-        try(RandomAccessFile systemFile = new RandomAccessFile(systemFileName, "rw")) {
-            FileMetadata meta = files.get(fileName);
-            long offset = meta.getOffset();
-            systemFile.seek(offset - 1);
-            systemFile.writeBoolean(true);
-            files.remove(fileName);
-            deletedFileSize += meta.getFileSize();
-            deletedFileCount += 1;
+    private void deleteFile(String systemFileName, String path) throws IOException {
+        try (RandomAccessFile systemFile = new RandomAccessFile(systemFileName, "rw")) {
+            for (String filePath : listFiles(path)) {
+                FileMetadata meta = files.remove(filePath);
+                long offset = meta.getOffset();
+                systemFile.seek(offset - 1);
+                systemFile.writeBoolean(true);
+                deletedFileSize += meta.getFileSize();
+                deletedFileCount += 1;
+            }
         }
     }
 
     private void cleanUpIfNecessary() throws IOException {
-        if(shouldCleanup()) {
+        if (shouldCleanup()) {
             cleanUp();
         }
     }
@@ -200,7 +222,7 @@ public class SingleFileSystem implements FileSystem {
         }
     }
 
-    public enum CleanupStrategy{
+    public enum CleanupStrategy {
         NEVER,
         ALWAYS,
         CHECK_COUNT,
