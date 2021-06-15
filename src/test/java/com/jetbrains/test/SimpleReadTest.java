@@ -13,6 +13,9 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/**
+ * Simplistic test of read operations. Needed for Load test
+ */
 public class SimpleReadTest {
     public static String SYSTEM_FILE_NAME = "target/test-classes/loadtestfilesystem";
 

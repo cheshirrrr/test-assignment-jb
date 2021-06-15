@@ -1,11 +1,12 @@
 package com.jetbrains.test;
 
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.io.Serializable;
 import java.util.Objects;
 
-public class FileMetadata implements Serializable {
+/**
+ * Class that represents metadata of a particular file
+ * Has all information needed to read the file
+ */
+public class FileMetadata {
     private final int fileSize;
     private final long offset;
 

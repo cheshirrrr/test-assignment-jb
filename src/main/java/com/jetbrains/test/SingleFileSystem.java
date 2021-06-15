@@ -12,18 +12,48 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
+/**
+ * Default implementation of {@link FileSystem} interface
+ * <p>
+ * Stores all files sequentially in a single binary file
+ * <p>
+ * New files are always appended to the end of the file
+ * <p>
+ * File deletion is handled by setting "deleted" flag on a specific file
+ * <p>
+ * File updates are handled by setting "deleted" flag on old copy and appending updated file at the end of the filesystem file
+ * <p>
+ * Optional cleanup strategies are introduced to compact the file periodically and get rid of deleted files.
+ * By default never cleans up the file, which avoids unnecessary confusion
+ * but could lead to performance problems if a lot of big files are written
+ * <p>
+ * Potential improvements:
+ * <p>
+ * 1. Could be modified to reuse empty spaces within the file for writing new files if they fit.
+ * That would allow for more optimal usage of space, but will lead to significantly more complex code
+ * (clearing old data, finding a place where file will fit etc.)
+ * <p>
+ * 2. File streaming could be implemented using {@link RandomAccessFile#getChannel()} which returns {@link java.nio.channels.FileChannel}
+ */
 public class SingleFileSystem implements FileSystem {
 
+    //  Map for quick access to metadata for all files. allows to quickly find a file in the filesystem file
     private final Map<String, FileMetadata> files = new HashMap<>();
+
+    //  Configuration property that allows to control how many deleted files are allowed in the filesystem file
     private final float fillRate;
+
+    //  Strategy to cleanup deleted files
     private final CleanupStrategy cleanupStrategy;
 
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     private final Lock readLock = readWriteLock.readLock();
     private final Lock writeLock = readWriteLock.writeLock();
 
+    //  Fields that help with the cleanup decision
     private int deletedFileCount = 0;
     private long deletedFileSize = 0;
+
     private final String systemFileName;
 
     private SingleFileSystem(String fileSystemFile, float fillRate, CleanupStrategy cleanupStrategy) {
@@ -72,7 +102,7 @@ public class SingleFileSystem implements FileSystem {
         readLock.lock();
         try {
             return readFile(this.systemFileName, path);
-        }finally {
+        } finally {
             readLock.unlock();
         }
     }
@@ -84,7 +114,7 @@ public class SingleFileSystem implements FileSystem {
             boolean fileExists = files.containsKey(path);
             if (fileExists && !overwrite) {
                 throw new FileExistsException(new File(path));
-            } else if(fileExists) {
+            } else if (fileExists) {
                 deleteFile(systemFileName, path);
             }
             writeFile(systemFileName, path, contents);
@@ -98,7 +128,7 @@ public class SingleFileSystem implements FileSystem {
     public void delete(String path) throws IOException {
         writeLock.lock();
         try {
-            if(!files.containsKey(path)){
+            if (!files.containsKey(path)) {
                 throw new FileNotFoundException(path);
             }
             deleteFile(systemFileName, path);
@@ -218,9 +248,13 @@ public class SingleFileSystem implements FileSystem {
                 return true;
             case CHECK_COUNT:
                 int existingFileCount = files.size();
+
+//              compares number of deleted files with number of deleted and existing files together using fillRate
                 return deletedFileCount >= Math.ceil((existingFileCount + deletedFileCount) * fillRate);
             case CHECK_SIZE:
                 int existingFilesSize = files.values().stream().mapToInt(FileMetadata::getFileSize).sum();
+
+//              compares total size of deleted files with total size of deleted and existing files together using fillRate
                 return deletedFileSize >= Math.ceil((existingFilesSize + deletedFileCount) * fillRate);
             default:
                 return false;

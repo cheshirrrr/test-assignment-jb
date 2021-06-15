@@ -8,7 +8,13 @@ import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+/**
+ * Optional wrapper class that allows to add gzipping to any {@link FileSystem}.
+ * Zips files before writing and unzips them after reading
+ */
 public class GzippedFileSystem implements FileSystem {
+    public static final int DEFAULT_BUFFER_SIZE = 1024;
+
     private final FileSystem delegate;
 
     public GzippedFileSystem(FileSystem delegate) {
@@ -43,7 +49,7 @@ public class GzippedFileSystem implements FileSystem {
     @Override
     public void write(String path, byte[] contents, boolean overwrite) throws IOException {
         try (ByteArrayInputStream byteIn = new ByteArrayInputStream(contents); ByteArrayOutputStream byteOut = new ByteArrayOutputStream(); GZIPOutputStream gzippedOut = new GZIPOutputStream(byteOut)) {
-            byte[] buffer = new byte[Math.min(contents.length, 1024)];
+            byte[] buffer = new byte[Math.min(contents.length, DEFAULT_BUFFER_SIZE)];
             int len;
             while ((len = byteIn.read(buffer)) > 0) {
                 gzippedOut.write(buffer, 0, len);
