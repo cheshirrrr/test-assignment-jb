@@ -54,6 +54,7 @@ public interface FileSystem {
      *  Provides a {@link java.nio.channels.Channel} to write file data into filesystem
      * @param path - absolute path to the file
      * @param overwrite - if set to false, system will throw exception if file already exists
+     * @return - writable channel that can be used to write file contents
      * @throws IOException - if system cannot write file, or if attempting to overwrite file without overwrite flag
      */
     WritableByteChannel getWriteChannel(String path, boolean overwrite) throws IOException;
