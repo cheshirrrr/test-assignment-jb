@@ -7,10 +7,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.net.URISyntaxException;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -66,6 +67,38 @@ class SingleFileSystemTest {
     }
 
     @Test
+    @DisplayName("When new file is added it can be streamed back")
+    public void canReadFromChannel() throws IOException {
+        FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
+
+        String testString = "Testing write/read";
+
+        String testFile = "testfolder/testsubfolder/testfile1";
+        system.write(testFile + "2", (testString + "2").getBytes(), true);
+        system.write(testFile, testString.getBytes(), true);
+        String contents3 = testString + "3";
+        system.write(testFile + "3", contents3.getBytes(), true);
+
+        system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
+
+        ReadableByteChannel channel = system.getReadChannel(testFile);
+        try(InputStream inputStream = Channels.newInputStream(channel)) {
+            ByteArrayOutputStream result = new ByteArrayOutputStream();
+            byte[] buffer = new byte[3];
+            for (int length; (length = inputStream.read(buffer)) != -1; ) {
+                result.write(buffer, 0, length);
+            }
+
+            assertEquals(testString, new String(result.toByteArray()), "Contents should be equal");
+
+        }
+
+        byte[] read3 = system.read(testFile + "3");
+
+        assertEquals(contents3, new String(read3), "System should work properly after streamin");
+    }
+
+    @Test
     @DisplayName("When new file is updated new version can be read back")
     public void canUpdateFile() throws IOException {
         FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
@@ -86,6 +119,73 @@ class SingleFileSystemTest {
 
         byte[] bytes = system.read(testFile);
         assertEquals(testStringUpdated, new String(bytes));
+    }
+
+    @Test
+    @DisplayName("New files can be written and deleted properly")
+    public void canUpdateAndDeleteMultipleFiles() throws IOException {
+        FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
+
+        String testString = "Testing write/read";
+
+        String contents1 = testString + "1";
+        String contents2 = testString + "2";
+        String contents3 = testString + "3";
+        String contents4 = testString + "4";
+
+        system.write("file1", contents1.getBytes(), true);
+        system.write("file2", contents2.getBytes(), true);
+        system.write("file11", contents3.getBytes(), true);
+        system.write("file12", contents4.getBytes(), true);
+
+        system.delete("file1");
+
+        assertEquals(contents2, new String(system.read("file2")));
+        assertEquals(contents3, new String(system.read("file11")));
+        assertEquals(contents4, new String(system.read("file12")));
+
+        assertThrows(FileNotFoundException.class, () -> system.read("file1"));
+    }
+
+    @Test
+    @DisplayName("When new file is streamed in new version can be read back")
+    public void canUpdateUsingChannels() throws IOException {
+        FileSystem system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
+
+        String testString = "Testing write/read";
+
+        String testFile = "testfolder/testsubfolder/testfile1";
+        system.write(testFile + "2", (testString + "2").getBytes(), true);
+        system.write(testFile, testString.getBytes(), true);
+        system.write(testFile + "3", (testString + "3").getBytes(), true);
+
+        String updatedContents = testString + "updated";
+
+        try(WritableByteChannel writeChannel = system.getWriteChannel(testFile, true)){
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(updatedContents.getBytes());
+            OutputStream outputStream = Channels.newOutputStream(writeChannel);
+
+            byte[] buffer = new byte[3];
+            for (int length; (length = inputStream.read(buffer)) != -1; ) {
+                try {
+                    outputStream.write(buffer, 0, length);
+                }catch (IOException e){
+                    System.out.println(e);
+                }
+            }
+        }
+
+        system = SingleFileSystem.create(SYSTEM_FILE_PATH.toString());
+
+        byte[] bytes = system.read(testFile);
+        assertEquals(updatedContents, new String(bytes), "Contents of the file should be updated properly");
+
+        system.write(testFile + "3", updatedContents.getBytes(), true);
+
+        byte[] read3 = system.read(testFile + "3");
+
+        assertEquals(updatedContents, new String(read3), "System should work properly after streaming write");
+
     }
 
     @Test

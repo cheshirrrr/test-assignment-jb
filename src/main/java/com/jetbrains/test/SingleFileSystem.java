@@ -1,8 +1,12 @@
 package com.jetbrains.test;
 
+import com.jetbrains.test.channels.LimitedReadChannel;
+import com.jetbrains.test.channels.ListenableWriteChannel;
 import org.apache.commons.io.FileExistsException;
 
 import java.io.*;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -49,12 +53,10 @@ public class SingleFileSystem implements FileSystem {
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     private final Lock readLock = readWriteLock.readLock();
     private final Lock writeLock = readWriteLock.writeLock();
-
+    private final String systemFileName;
     //  Fields that help with the cleanup decision
     private int deletedFileCount = 0;
     private long deletedFileSize = 0;
-
-    private final String systemFileName;
 
     private SingleFileSystem(String fileSystemFile, float fillRate, CleanupStrategy cleanupStrategy) {
         systemFileName = fileSystemFile;
@@ -125,6 +127,67 @@ public class SingleFileSystem implements FileSystem {
     }
 
     @Override
+    public ReadableByteChannel getReadChannel(String path) throws IOException {
+        readLock.lock();
+        try {
+            RandomAccessFile systemFile = new RandomAccessFile(systemFileName, "r");
+            if (!files.containsKey(path)) {
+                throw new FileNotFoundException(path);
+            }
+            FileMetadata metadata = files.get(path);
+            int fileSize = metadata.getFileSize();
+            long offset = metadata.getOffset();
+            return new LimitedReadChannel(systemFile.getChannel().position(offset), fileSize);
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    @Override
+    public WritableByteChannel getWriteChannel(String path, boolean overwrite) throws IOException {
+        ListenableWriteChannel channel;
+        RandomAccessFile systemFile;
+        long sizeOffset;
+        long offset;
+
+        writeLock.lock();
+        try {
+            boolean fileExists = files.containsKey(path);
+            if (fileExists && !overwrite) {
+                throw new FileExistsException(new File(path));
+            } else if (fileExists) {
+                deleteFile(systemFileName, path);
+            }
+            cleanUpIfNecessary();
+            systemFile = new RandomAccessFile(systemFileName, "rw");
+            systemFile.seek(systemFile.length());
+            systemFile.writeUTF(path);
+            sizeOffset = systemFile.getFilePointer();
+            systemFile.writeInt(0); //temp size to fill in later
+            systemFile.writeBoolean(false);
+            offset = systemFile.getFilePointer();
+            channel = new ListenableWriteChannel(systemFile.getChannel());
+        channel.setCloseListener(bytesWritten -> {
+            try {
+                systemFile.seek(sizeOffset);
+                systemFile.writeInt(bytesWritten);
+                files.put(path, new FileMetadata(bytesWritten, offset));
+            } finally {
+                writeLock.unlock();
+            }
+        });
+        return channel;
+
+        } catch (IOException e){
+//          catch is used instead of finally because if there is no error
+//          then lock should only be released when we finish writing the file
+//          and not when we simply return the channel
+            writeLock.unlock();
+            throw e;
+        }
+    }
+
+    @Override
     public void delete(String path) throws IOException {
         writeLock.lock();
         try {
@@ -166,6 +229,7 @@ public class SingleFileSystem implements FileSystem {
         deletedFileSize = 0;
         deletedFileCount = 0;
     }
+
 
     private void initialize() throws IOException {
         readLock.lock();
@@ -225,14 +289,12 @@ public class SingleFileSystem implements FileSystem {
 
     private void deleteFile(String systemFileName, String path) throws IOException {
         try (RandomAccessFile systemFile = new RandomAccessFile(systemFileName, "rw")) {
-            for (String filePath : listFiles(path)) {
-                FileMetadata meta = files.remove(filePath);
-                long offset = meta.getOffset();
-                systemFile.seek(offset - 1);
-                systemFile.writeBoolean(true);
-                deletedFileSize += meta.getFileSize();
-                deletedFileCount += 1;
-            }
+            FileMetadata meta = files.remove(path);
+            long offset = meta.getOffset();
+            systemFile.seek(offset - 1);
+            systemFile.writeBoolean(true);
+            deletedFileSize += meta.getFileSize();
+            deletedFileCount += 1;
         }
     }
 

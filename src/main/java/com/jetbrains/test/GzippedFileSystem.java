@@ -3,6 +3,8 @@ package com.jetbrains.test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
@@ -44,6 +46,16 @@ public class GzippedFileSystem implements FileSystem {
             gzippedIn.close();
             return byteOut.toByteArray();
         }
+    }
+
+    @Override
+    public ReadableByteChannel getReadChannel(String path) throws IOException {
+        return delegate.getReadChannel(path);
+    }
+
+    @Override
+    public WritableByteChannel getWriteChannel(String path, boolean overwrite) throws IOException {
+        return delegate.getWriteChannel(path, overwrite);
     }
 
     @Override
